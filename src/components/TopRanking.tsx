@@ -56,7 +56,7 @@ export default function TopRanking({ players }: Props) {
                 border: `1px solid ${i === 0 ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.05)'}`,
                 transition: 'all 0.2s',
               }}
-              whileHover={{ x: 4, background: 'rgba(0,212,255,0.06)', borderColor: 'rgba(0,212,255,0.2)' } as Record<string, unknown>}
+              whileHover={{ x: 4, background: 'rgba(0,212,255,0.06)', borderColor: 'rgba(0,212,255,0.2)' }}
             >
               {/* Rank */}
               <div style={{
@@ -119,7 +119,7 @@ export default function TopRanking({ players }: Props) {
                 border: '1px solid rgba(255,34,68,0.12)',
                 transition: 'all 0.2s',
               }}
-              whileHover={{ x: -4, background: 'rgba(255,34,68,0.08)', borderColor: 'rgba(255,34,68,0.25)' } as Record<string, unknown>}
+              whileHover={{ x: -4, background: 'rgba(255,34,68,0.08)', borderColor: 'rgba(255,34,68,0.25)' }}
             >
               <div style={{
                 width: '28px', height: '28px', borderRadius: '50%',
