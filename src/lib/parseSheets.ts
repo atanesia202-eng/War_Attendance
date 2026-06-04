@@ -14,7 +14,8 @@ export function buildCsvUrl(sheetUrl: string): string {
   const id = extractSheetId(sheetUrl);
   const gid = extractGid(sheetUrl);
   if (!id) return sheetUrl;
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv${gid ? `&gid=${gid}` : ''}`;
+  // Use gviz/tq endpoint — the /export?format=csv endpoint now returns HTTP 400
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv${gid ? `&gid=${gid}` : ''}`;
 }
 
 function parseBoolean(val: string): boolean | null {
