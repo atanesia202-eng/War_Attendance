@@ -15,7 +15,9 @@ export function buildCsvUrl(sheetUrl: string): string {
   const gid = extractGid(sheetUrl);
   if (!id) return sheetUrl;
   // Use gviz/tq endpoint — the /export?format=csv endpoint now returns HTTP 400
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv${gid ? `&gid=${gid}` : ''}`;
+  // We use &headers=5 to force the API to include the top 5 header rows (which contain dates and activities).
+  // This causes gviz/tq to concatenate those 5 rows into the first row of the CSV.
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=5${gid ? `&gid=${gid}` : ''}`;
 }
 
 function parseBoolean(val: string): boolean | null {
@@ -53,8 +55,8 @@ export function parseCSV(csvText: string): SheetData {
 
   // Find the index of the data header row (contains "IGN")
   let headerRowIdx = -1;
-  for (let i = 0; i < allRows.length; i++) {
-    if (allRows[i].some(cell => cell.trim() === 'IGN')) {
+  for (let i = 0; i < Math.min(10, allRows.length); i++) {
+    if (allRows[i].some(cell => cell.includes('IGN') || cell.includes('SP/MS RANKING'))) {
       headerRowIdx = i;
       break;
     }
@@ -64,14 +66,15 @@ export function parseCSV(csvText: string): SheetData {
     return { players: [], stats: computeStats([]), lastUpdated: new Date().toISOString(), dates: [] };
   }
 
-  const datesRow = allRows[headerRowIdx - 4] || [];
-  const weekRow = allRows[headerRowIdx - 3] || [];
-  const dowRow = allRows[headerRowIdx - 2] || [];
-  const activityRow = allRows[headerRowIdx - 1] || [];
   const dataHeaderRow = allRows[headerRowIdx];
 
-  // Fixed columns: SP/MS RANKING(0), IGN(1), PS(2), LEVEL(3), MS(4), SP(5), Server(6), ATTENDED(7), TOTAL(8), %Attendance(9)
-  const DATA_START_COL = 10; // activity columns start here
+  let DATA_START_COL = 10; // default
+  for (let i = 0; i < dataHeaderRow.length; i++) {
+    if (dataHeaderRow[i].includes('% Attendance')) {
+      DATA_START_COL = i + 1;
+      break;
+    }
+  }
 
   // Build date/activity map from activity columns
   interface ColMeta {
@@ -86,11 +89,41 @@ export function parseCSV(csvText: string): SheetData {
   let currentWeek = '';
   let currentDow = '';
 
-  for (let col = DATA_START_COL; col < activityRow.length; col++) {
-    const dateCell = datesRow[col]?.trim() || '';
-    const weekCell = weekRow[col]?.trim() || '';
-    const dowCell = dowRow[col]?.trim() || '';
-    const actCell = activityRow[col]?.trim() || '';
+  const dateRegex = /\b\d{1,2}\/\d{1,2}(?:\/\d{4})?\b/;
+  const dowRegex = /\b(SUNDAY|MONDAY|TUESDAY|WEDMESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)\b/i;
+  const weekRegex = /\bW\d+\b/i;
+
+  const isMergedHeaders = headerRowIdx < 4;
+  const datesRow = isMergedHeaders ? [] : (allRows[headerRowIdx - 4] || []);
+  const weekRow = isMergedHeaders ? [] : (allRows[headerRowIdx - 3] || []);
+  const dowRow = isMergedHeaders ? [] : (allRows[headerRowIdx - 2] || []);
+  const activityRow = isMergedHeaders ? [] : (allRows[headerRowIdx - 1] || []);
+
+  for (let col = DATA_START_COL; col < dataHeaderRow.length; col++) {
+    let dateCell = '';
+    let weekCell = '';
+    let dowCell = '';
+    let actCell = '';
+
+    if (isMergedHeaders) {
+      const mergedHeader = dataHeaderRow[col] || '';
+      const dMatch = mergedHeader.match(dateRegex);
+      if (dMatch) dateCell = dMatch[0];
+      
+      const wMatch = mergedHeader.match(weekRegex);
+      if (wMatch) weekCell = wMatch[0].toUpperCase();
+      
+      const dowMatch = mergedHeader.match(dowRegex);
+      if (dowMatch) dowCell = dowMatch[0].toUpperCase();
+
+      const matchedActivity = ACTIVITIES.find(a => mergedHeader.toLowerCase().includes(a.toLowerCase()));
+      if (matchedActivity) actCell = matchedActivity;
+    } else {
+      dateCell = datesRow[col]?.trim() || '';
+      weekCell = weekRow[col]?.trim() || '';
+      dowCell = dowRow[col]?.trim() || '';
+      actCell = activityRow[col]?.trim() || '';
+    }
 
     if (dateCell) currentDate = dateCell;
     if (weekCell) currentWeek = weekCell;
