@@ -19,8 +19,9 @@ export function buildCsvUrl(sheetUrl: string): string {
 }
 
 function parseBoolean(val: string): boolean | null {
-  if (val === 'TRUE') return true;
-  if (val === 'FALSE') return false;
+  const upper = val?.trim().toUpperCase();
+  if (upper === 'TRUE') return true;
+  if (upper === 'FALSE') return false;
   return null;
 }
 
@@ -95,9 +96,11 @@ export function parseCSV(csvText: string): SheetData {
     if (weekCell) currentWeek = weekCell;
     if (dowCell) currentDow = dowCell;
 
-    const activity = actCell as ActivityType;
-    if (ACTIVITIES.includes(activity)) {
-      colMeta.push({ date: currentDate, dayOfWeek: currentDow, week: currentWeek, activity });
+    const activityStr = actCell?.trim() || '';
+    const matchedActivity = ACTIVITIES.find(a => a.toLowerCase() === activityStr.toLowerCase());
+
+    if (matchedActivity) {
+      colMeta.push({ date: currentDate, dayOfWeek: currentDow, week: currentWeek, activity: matchedActivity });
     } else {
       colMeta.push({ date: currentDate, dayOfWeek: currentDow, week: currentWeek, activity: '' as ActivityType });
     }
